@@ -62,57 +62,45 @@ HTML_TEMPLATE = """
 <html lang="he" dir="rtl">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>מציאת פסוק לפי שם - ספר תהילים</title>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background-color: #f4f6f9; padding: 20px; direction: rtl; }
-        .container { max-width: 600px; margin: 0 auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
-        h1 { text-align: center; color: #2c3e50; font-size: 22px; }
-        .search-form { display: flex; gap: 10px; margin-bottom: 20px; }
-        input { flex: 1; padding: 12px; border: 2px solid #ccc; border-radius: 8px; font-size: 16px; }
-        button { padding: 12px 20px; background-color: #3498db; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; }
+        body { font-family: 'Segoe UI', sans-serif; background-color: #f4f6f9; color: #333; margin: 0; padding: 20px; }
+        .container { max-width: 650px; margin: 40px auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        h1 { text-align: center; color: #2c3e50; margin-bottom: 30px; font-size: 24px; }
+        .search-form { display: flex; gap: 10px; margin-bottom: 30px; }
+        input[type="text"] { flex: 1; padding: 12px 15px; border: 2px solid #ccc; border-radius: 8px; font-size: 16px; outline: none; }
+        input[type="text"]:focus { border-color: #3498db; }
+        button { padding: 12px 25px; background-color: #3498db; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; }
         button:hover { background-color: #2980b9; }
-        .card { background: #fdfefe; border-right: 4px solid #3498db; padding: 12px; margin-bottom: 12px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-        .meta { font-size: 12px; color: #e67e22; font-weight: bold; }
-        .text { font-size: 17px; line-height: 1.5; color: #2c3e50; margin-top: 5px; }
+        .results-info { font-weight: bold; margin-bottom: 15px; color: #7f8c8d; }
+        .verse-card { background: #fdfefe; border-right: 4px solid #3498db; padding: 15px; margin-bottom: 15px; border-radius: 4px; }
+        .verse-meta { font-size: 13px; color: #e67e22; font-weight: bold; margin-bottom: 5px; }
+        .verse-text { font-size: 18px; line-height: 1.6; color: #2c3e50; }
+        .no-results { text-align: center; color: #e74c3c; font-size: 16px; margin-top: 20px; }
     </style>
 </head>
 <body>
 <div class="container">
-    <h1>פסוקים בתהילים לפי שם</h1>
-    
-    <form class="search-form" onsubmit="search(); return false;">
-        <input type="text" id="nameInput" placeholder="הכנס שם...">
+    <h1>מצא פסוק בתהילים לפי שם</h1>
+    <form class="search-form" method="POST">
+        <input type="text" name="name" placeholder="הכנס שם..." value="{{ user_input }}" required autocomplete="off">
         <button type="submit">חפש</button>
     </form>
-    
-    <div id="resultsArea"></div>
+    {% if searched %}
+        {% if results %}
+            <div class="results-info">נמצאו {{ results|length }} פסוקים:</div>
+            {% for item in results %}
+                <div class="verse-card">
+                    <div class="verse-meta">תהילים פרק {{ item.chapter }}, פסוק {{ item.verse }}</div>
+                    <div class="verse-text">"{{ item.text }}"</div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <div class="no-results">לא נמצאו פסוקים מתאימים.</div>
+        {% endif %}
+    {% endif %}
 </div>
-
-<script>
-    function search() {
-        const name = document.getElementById('nameInput').value;
-        const area = document.getElementById('resultsArea');
-        area.innerHTML = "מחפש...";
-        
-        pywebview.api.search_name(name).then(response => {
-            if (response.error) {
-                area.innerHTML = `<div style="color:red;">${response.error}</div>`;
-                return;
-            }
-            if (response.results.length === 0) {
-                area.innerHTML = `<div>לא נמצאו פסוקים עבור האותיות ${response.start} ו-${response.end}.</div>`;
-                return;
-            }
-            let html = `<strong>נמצאו ${response.results.length} פסוקים (אות פותחת: ${response.start}, סוגרת: ${response.end}):</strong><br><br>`;
-            response.results.forEach(item => {
-                html += `<div class="card">
-                            <div class="meta">תהילים פרק ${item.chapter}, פסוק ${item.verse}</div>
-                            <div class="text">"${item.text}"</div>
-                         </div>`;
-            });
-            area.innerHTML = html;
-        });
-    }
-</script>
 </body>
 </html>
 """
