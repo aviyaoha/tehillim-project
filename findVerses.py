@@ -165,7 +165,7 @@ HTML_TEMPLATE = """
         .toggle-btn { background: #f39c12; color: white; border: none; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: bold; }
         .toggle-btn:hover { background: #d35400; }
         
-        .whatsapp-btn { background: #25D366; color: white; text-decoration: none; padding: 8px 14px; border-radius: 6px; font-size: 14px; font-weight: bold; display: inline-flex; align-items: center; }
+        .whatsapp-btn { background: #25D366; color: white; border: none; padding: 8px 14px; border-radius: 6px; font-size: 14px; font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; }
         .whatsapp-btn:hover { background: #128C7E; }
 
         .commentary-box { margin-top: 10px; padding: 12px; background-color: #fcf8e3; border: 1px solid #faebcc; border-radius: 6px; font-size: 14px; color: #8a6d3b; display: none; line-height: 1.5; }
@@ -193,9 +193,8 @@ HTML_TEMPLATE = """
                     <div class="action-buttons">
                         <button type="button" class="toggle-btn" onclick="loadCommentary(this, '{{ item.book }}', '{{ item.chapter }}', '{{ item.verse }}')">📜 הצג פירוש רש"י</button>
                         
-                        <!-- כפתור שיתוף לוואטסאפ -->
-                        {% set wa_message = "היי " ~ user_input ~ "! 👋\nמצאתי את הפסוק שלך בתנ\"ך:\n\n\"" ~ item.text ~ "\"\n(" ~ item.book ~ " פרק " ~ item.chapter ~ ", פסוק " ~ item.verse ~ ")" %}
-                        <a href="https://api.whatsapp.com/send?text={{ wa_message | urlencode }}" target="_blank" class="whatsapp-btn">💬 שלח לחבר בוואטסאפ</a>
+                        <!-- כפתור שיתוף לוואטסאפ מבוסס JS למניעת תקלות מילוט -->
+                        <button type="button" class="whatsapp-btn" onclick="shareWhatsApp('{{ user_input }}', '{{ item.text }}', '{{ item.book }}', '{{ item.chapter }}', '{{ item.verse }}')">💬 שלח לחבר בוואטסאפ</button>
                     </div>
 
                     <div class="commentary-box"></div>
@@ -208,6 +207,12 @@ HTML_TEMPLATE = """
 </div>
 
 <script>
+function shareWhatsApp(name, text, book, chapter, verse) {
+    const msg = `היי ${name}! 👋\nמצאתי את הפסוק שלך בתנ"ך:\n\n"${text}"\n(${book} פרק ${chapter}, פסוק ${verse})`;
+    const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`;
+    window.open(url, '_blank');
+}
+
 function loadCommentary(btn, book, chapter, verse) {
     const box = btn.parentElement.nextElementSibling;
     
