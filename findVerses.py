@@ -539,8 +539,8 @@ HTML_TEMPLATE = """
 </head>
 <body>
 <div class="container">
-    <h1>מצא פסוק בתנ"ך לפי שם</h1>
-    <h2>חיפוש מהיר בכל כ"ד הספרים</h2>
+    <h1>קריאת תהלים יומית</h1>
+    <h2>ניתן להוסיף שמות לתפילה. לזיכוי הרבים לשם שמיים</h2>
     
     <!-- כרטיסיית התהילים היומי -->
     <div class="daily-tehillim-card">
@@ -611,6 +611,7 @@ HTML_TEMPLATE = """
     </div>
     
     <!-- טופס החיפוש לפי שם -->
+    <h2>מצא פסוק בתנ"ך לפי שם</h2>
     <form class="search-form" method="POST" action="/">
         <input type="text" name="name" class="search-input" placeholder="הכנס שם לחיפוש פסוק (למשל: שיר, אברהם...)" value="{{ user_input }}" required autocomplete="off">
         <button type="submit" class="search-btn">חפש</button>
