@@ -161,8 +161,13 @@ HTML_TEMPLATE = """
         .verse-meta { font-size: 13px; color: #e67e22; font-weight: bold; margin-bottom: 5px; }
         .verse-text { font-size: 18px; line-height: 1.6; color: #2c3e50; font-weight: 600; }
         
-        .toggle-btn { background: #f39c12; color: white; border: none; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-size: 14px; margin-top: 10px; display: inline-block; font-weight: bold; }
+        .action-buttons { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+        .toggle-btn { background: #f39c12; color: white; border: none; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: bold; }
         .toggle-btn:hover { background: #d35400; }
+        
+        .whatsapp-btn { background: #25D366; color: white; text-decoration: none; padding: 8px 14px; border-radius: 6px; font-size: 14px; font-weight: bold; display: inline-flex; align-items: center; }
+        .whatsapp-btn:hover { background: #128C7E; }
+
         .commentary-box { margin-top: 10px; padding: 12px; background-color: #fcf8e3; border: 1px solid #faebcc; border-radius: 6px; font-size: 14px; color: #8a6d3b; display: none; line-height: 1.5; }
         .no-results { text-align: center; color: #e74c3c; font-size: 16px; margin-top: 20px; }
     </style>
@@ -185,7 +190,14 @@ HTML_TEMPLATE = """
                     <div class="verse-meta">{{ item.book }} • פרק {{ item.chapter }}, פסוק {{ item.verse }}</div>
                     <div class="verse-text">"{{ item.text }}"</div>
                     
-                    <button type="button" class="toggle-btn" onclick="loadCommentary(this, '{{ item.book }}', '{{ item.chapter }}', '{{ item.verse }}')">📜 הצג פירוש רש"י</button>
+                    <div class="action-buttons">
+                        <button type="button" class="toggle-btn" onclick="loadCommentary(this, '{{ item.book }}', '{{ item.chapter }}', '{{ item.verse }}')">📜 הצג פירוש רש"י</button>
+                        
+                        <!-- כפתור שיתוף לוואטסאפ -->
+                        {% set wa_message = "היי " ~ user_input ~ "! 👋\nמצאתי את הפסוק שלך בתנ\"ך:\n\n\"" ~ item.text ~ "\"\n(" ~ item.book ~ " פרק " ~ item.chapter ~ ", פסוק " ~ item.verse ~ ")" %}
+                        <a href="https://api.whatsapp.com/send?text={{ wa_message | urlencode }}" target="_blank" class="whatsapp-btn">💬 שלח לחבר בוואטסאפ</a>
+                    </div>
+
                     <div class="commentary-box"></div>
                 </div>
             {% endfor %}
@@ -197,7 +209,7 @@ HTML_TEMPLATE = """
 
 <script>
 function loadCommentary(btn, book, chapter, verse) {
-    const box = btn.nextElementSibling;
+    const box = btn.parentElement.nextElementSibling;
     
     if (box.style.display === 'block') {
         box.style.display = 'none';
