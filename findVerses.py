@@ -4,10 +4,14 @@ import os
 import urllib.request
 import urllib.parse
 import json
+import random
 
 app = Flask(__name__)
 
-# המרת אותיות עבריות (גימטריה) למספרים עבור ה-API של ספריא
+# מסד נתונים זמני (בזיכרון) לשמות לתפילה
+PRAYER_DATABASE = []
+
+# המרת אותיות עבריות (גימטריה) למספרים
 HEBREW_NUMERALS = {
     'א': 1, 'ב': 2, 'ג': 3, 'ד': 4, 'ה': 5, 'ו': 6, 'ז': 7, 'ח': 8, 'ט': 9,
     'י': 10, 'כ': 20, 'ל': 30, 'מ': 40, 'נ': 50, 'ס': 60, 'ע': 70, 'פ': 80, 'צ': 90,
@@ -22,21 +26,18 @@ def hebrew_to_int(hebrew_str):
             total += HEBREW_NUMERALS[char]
     return total if total > 0 else 1
 
-# פונקציה להמרת מספרים לאותיות עבריות (גימטריה)
 def int_to_hebrew(num):
     if not isinstance(num, int) or num <= 0:
         return str(num)
         
     hebrew_letters = []
     
-    # מאות
     h = num // 100
     if h > 0:
         hundreds_map = {1: 'ק', 2: 'ר', 3: 'ש', 4: 'ת'}
         hebrew_letters.append(hundreds_map.get(h, ''))
         num %= 100
         
-    # עשרות ויחידות
     if num == 15:
         hebrew_letters.append('ט')
         hebrew_letters.append('ו')
@@ -210,11 +211,45 @@ def get_today_tehillim_info():
         
         if filtered_verses:
             content.append({
-                'chapter_heb': int_to_hebrew(ch), # המרת מספר הפרק לאותיות עבריות
+                'chapter_heb': int_to_hebrew(ch),
                 'verses': filtered_verses
             })
 
     return hebrew_date_str, portion_label, content
+
+# --- נתיבים (API) עבור שמות לתפילה ---
+
+@app.route('/add_prayer', methods=['POST'])
+def add_prayer():
+    data = request.json
+    first_name = data.get('first_name', '').strip()
+    relation = data.get('relation', 'בן').strip()
+    mother_name = data.get('mother_name', '').strip()
+    reason = data.get('reason', '').strip()
+    custom_reason = data.get('custom_reason', '').strip()
+
+    if reason == "אחר" and custom_reason:
+        words = custom_reason.split()[:10]
+        reason = " ".join(words)
+
+    if first_name and mother_name and reason:
+        PRAYER_DATABASE.append({
+            'first_name': first_name,
+            'relation': relation,
+            'mother_name': mother_name,
+            'reason': reason
+        })
+        return jsonify({'status': 'success', 'message': 'השם נוסף בהצלחה לתפילה!'})
+    
+    return jsonify({'status': 'error', 'message': 'אנא מלא את כל השדות'}), 400
+
+@app.route('/get_random_prayer')
+def get_random_prayer():
+    if not PRAYER_DATABASE:
+        return jsonify({'status': 'empty', 'message': 'טרם הוכנסו שמות לתפילה. היה הראשון להוסיף שם!'})
+    
+    selected = random.choice(PRAYER_DATABASE)
+    return jsonify({'status': 'success', 'prayer': selected})
 
 @app.route('/get_commentary')
 def get_commentary():
@@ -274,7 +309,7 @@ HTML_TEMPLATE = """
     <title>מציאת פסוק לפי שם - כל התנ"ך</title>
     <style>
         body { font-family: 'Segoe UI', sans-serif; background-color: #f4f6f9; color: #333; margin: 0; padding: 20px; }
-        .container { max-width: 650px; margin: 40px auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        .container { max-width: 680px; margin: 40px auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
         h1 { text-align: center; color: #2c3e50; margin-bottom: 5px; font-size: 24px; }
         h2 { text-align: center; color: #7f8c8d; font-size: 14px; margin-bottom: 20px; font-weight: normal; }
         
@@ -325,11 +360,75 @@ HTML_TEMPLATE = """
         .tehillim-chapter-text { font-size: 16px; line-height: 1.8; color: #2c3e50; }
         .v-num { color: #e67e22; font-weight: bold; font-size: 14px; }
 
+        /* עיצוב אזור השמות לתפילה */
+        .prayer-card {
+            background: #fffdf5;
+            border: 1px solid #f3e5ab;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+        }
+        .prayer-title { text-align: center; font-size: 18px; font-weight: bold; color: #8e6d05; margin-bottom: 15px; }
+        .prayer-form-grid { display: grid; grid-template-columns: 2fr 1fr 2fr; gap: 10px; margin-bottom: 12px; }
+        .prayer-form-full { display: flex; flex-direction: column; gap: 10px; margin-bottom: 15px; }
+        
+        .prayer-input, .prayer-select {
+            padding: 10px 12px;
+            border: 1px solid #dcd0a4;
+            border-radius: 6px;
+            font-size: 14px;
+            outline: none;
+            background: white;
+        }
+        .prayer-input:focus, .prayer-select:focus { border-color: #d4ac0d; }
+
+        .prayer-buttons-container { display: flex; gap: 10px; flex-wrap: wrap; }
+        .add-prayer-btn {
+            background-color: #27ae60;
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            flex: 1;
+        }
+        .add-prayer-btn:hover { background-color: #219653; }
+
+        .raffle-btn {
+            background-color: #8e44ad;
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            flex: 2;
+            transition: background 0.2s;
+        }
+        .raffle-btn:hover { background-color: #71368a; }
+
+        .raffle-result-box {
+            margin-top: 15px;
+            background: #f4ecf7;
+            border: 1px solid #d7bde2;
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+            display: none;
+        }
+        .raffle-result-title { font-size: 13px; color: #6c3483; font-weight: bold; margin-bottom: 5px; }
+        .raffle-result-name { font-size: 20px; color: #4a235a; font-weight: bold; margin-bottom: 5px; }
+        .raffle-result-reason { font-size: 15px; color: #7d3c98; }
+
         .search-form { display: flex; gap: 10px; margin-bottom: 30px; }
-        input[type="text"] { flex: 1; padding: 12px 15px; border: 2px solid #ccc; border-radius: 8px; font-size: 16px; outline: none; }
-        input[type="text"]:focus { border-color: #3498db; }
-        button[type="submit"] { padding: 12px 25px; background-color: #3498db; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; }
-        button[type="submit"]:hover { background-color: #2980b9; }
+        input[type="text"].search-input { flex: 1; padding: 12px 15px; border: 2px solid #ccc; border-radius: 8px; font-size: 16px; outline: none; }
+        input[type="text"].search-input:focus { border-color: #3498db; }
+        button[type="submit"].search-btn { padding: 12px 25px; background-color: #3498db; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; }
+        button[type="submit"].search-btn:hover { background-color: #2980b9; }
         
         .results-info { font-weight: bold; margin-bottom: 15px; color: #7f8c8d; }
         .verse-card { background: #fdfefe; border-right: 4px solid #2ecc71; padding: 15px; margin-bottom: 15px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
@@ -352,6 +451,7 @@ HTML_TEMPLATE = """
     <h1>מצא פסוק בתנ"ך לפי שם</h1>
     <h2>חיפוש מהיר בכל כ"ד הספרים</h2>
     
+    <!-- כרטיסיית התהילים היומי -->
     <div class="daily-tehillim-card">
         <div class="daily-date">📅 תהילים יומי - {{ today_hebrew_date }}</div>
         <div class="daily-portion">הפרקים להיום: {{ today_tehillim_portion }}</div>
@@ -368,10 +468,60 @@ HTML_TEMPLATE = """
             {% endfor %}
         </div>
     </div>
+
+    <!-- כרטיסיית הוספת שמות לתפילה והגרלה -->
+    <div class="prayer-card">
+        <div class="prayer-title">🙏 הוספת שם לתפילה</div>
+        <form id="prayerForm" onsubmit="submitPrayer(event)">
+            <div class="prayer-form-grid">
+                <input type="text" id="pFirstName" class="prayer-input" placeholder="שם פרטי" required>
+                <select id="pRelation" class="prayer-select">
+                    <option value="בן">בן</option>
+                    <option value="בת">בת</option>
+                </select>
+                <input type="text" id="pMotherName" class="prayer-input" placeholder="שם האם" required>
+            </div>
+            
+            <div class="prayer-form-full">
+                <select id="pReason" class="prayer-select" onchange="toggleCustomReason()" required>
+                    <option value="" disabled selected>--- בחר/י תפילה ל: ---</option>
+                    <option value="זיווג הגון">זיווג הגון</option>
+                    <option value="פרנסה בשפע">פרנסה בשפע</option>
+                    <option value="גאולה וישועה">גאולה וישועה</option>
+                    <option value="בריאות">בריאות</option>
+                    <option value="רפואה שלמה">רפואה שלמה</option>
+                    <option value="התפתחות תקינה ונחת להוריהם">התפתחות תקינה ונחת להוריהם</option>
+                    <option value="פרי בטן">פרי בטן</option>
+                    <option value="שפע ברכה והצלחה בכל מעשה ידיו/ה">שפע ברכה והצלחה בכל מעשה ידיו/ה</option>
+                    <option value="הצלחת השליחות הגשמית והרוחנית שלו/ה בעולם">הצלחת השליחות הגשמית והרוחנית שלו/ה בעולם</option>
+                    <option value="שלום בית">שלום בית</option>
+                    <option value="הצלחת חינוך הילדים">הצלחת חינוך הילדים</option>
+                    <option value="הצלחה בלימודים">הצלחה בלימודים</option>
+                    <option value="הצלחה במבחן">הצלחה במבחן</option>
+                    <option value="קבלה לעבודה">קבלה לעבודה</option>
+                    <option value="אחר">אחר (כתיבה חופשית)...</option>
+                </select>
+                
+                <input type="text" id="pCustomReason" class="prayer-input" placeholder="פרט/י בקצרה (עד 10 מילים)..." style="display: none;" oninput="limitWords(this, 10)">
+            </div>
+
+            <div class="prayer-buttons-container">
+                <button type="submit" class="add-prayer-btn">➕ הוסף לתפילה</button>
+                <button type="button" class="raffle-btn" onclick="drawRandomPrayer()">✨ "כל המתפלל על חברו נענה תחילה" - הגרילו שם לתפילה</button>
+            </div>
+        </form>
+
+        <div id="raffleResultBox" class="raffle-result-box">
+            <div class="raffle-result-title">השם שהוגרל עבורך לתפילה:</div>
+            <div id="raffleResultName" class="raffle-result-name"></div>
+            <div id="raffleResultReason" class="raffle-result-reason"></div>
+        </div>
+    </div>
     
+    <!-- טופס החיפוש לפי שם -->
     <form class="search-form" method="POST" action="/">
-        <input type="text" name="name" placeholder="הכנס שם (למשל: שיר, אברהם...)" value="{{ user_input }}" required autocomplete="off">
-        <button type="submit">חפש</button>
+        <input type="text" name="name" class="search-input" placeholder="הכנס שם לחיפוש פסוק (למשל: שיר, אברהם...)" value="{{ user_input }}" required autocomplete="off">
+        <button type="submit" class="search-btn">חפש</button>
     </form>
     
     {% if searched %}
@@ -406,6 +556,78 @@ HTML_TEMPLATE = """
 </div>
 
 <script>
+function toggleCustomReason() {
+    const reasonSelect = document.getElementById('pReason');
+    const customInput = document.getElementById('pCustomReason');
+    if (reasonSelect.value === 'אחר') {
+        customInput.style.display = 'block';
+        customInput.required = true;
+    } else {
+        customInput.style.display = 'none';
+        customInput.required = false;
+    }
+}
+
+function limitWords(input, maxWords) {
+    let words = input.value.trim().split(/\s+/);
+    if (words.length > maxWords) {
+        input.value = words.slice(0, maxWords).join(" ");
+    }
+}
+
+function submitPrayer(event) {
+    event.preventDefault();
+    
+    const firstName = document.getElementById('pFirstName').value;
+    const relation = document.getElementById('pRelation').value;
+    const motherName = document.getElementById('pMotherName').value;
+    const reason = document.getElementById('pReason').value;
+    const customReason = document.getElementById('pCustomReason').value;
+
+    fetch('/add_prayer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            first_name: firstName,
+            relation: relation,
+            mother_name: motherName,
+            reason: reason,
+            custom_reason: customReason
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        alert(data.message);
+        if (data.status === 'success') {
+            document.getElementById('prayerForm').reset();
+            document.getElementById('pCustomReason').style.display = 'none';
+        }
+    })
+    .catch(err => alert('שגיאה בהוספת השם. נסה שוב.'));
+}
+
+function drawRandomPrayer() {
+    fetch('/get_random_prayer')
+    .then(res => res.json())
+    .then(data => {
+        const resultBox = document.getElementById('raffleResultBox');
+        const nameDiv = document.getElementById('raffleResultName');
+        const reasonDiv = document.getElementById('raffleResultReason');
+
+        if (data.status === 'empty') {
+            alert(data.message);
+            resultBox.style.display = 'none';
+            return;
+        }
+
+        const p = data.prayer;
+        nameDiv.innerText = `${p.first_name} ${p.relation} ${p.mother_name}`;
+        reasonDiv.innerText = `לתפילה עבור: ${p.reason}`;
+        resultBox.style.display = 'block';
+    })
+    .catch(err => alert('שגיאה בהגשת השם. נסה שוב.'));
+}
+
 function toggleDailyTehillim() {
     const box = document.getElementById('daily-tehillim-text-box');
     const btn = document.querySelector('.toggle-tehillim-btn');
