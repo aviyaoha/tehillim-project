@@ -7,11 +7,12 @@ import json
 
 app = Flask(__name__)
 
-# המרת אותיות עבריות (גימטריה) למספרים עבור ה-API של ספריא
+# המרת אותיות עבריות (גימטריה) למספרים
 HEBREW_NUMERALS = {
     'א': 1, 'ב': 2, 'ג': 3, 'ד': 4, 'ה': 5, 'ו': 6, 'ז': 7, 'ח': 8, 'ט': 9,
     'י': 10, 'כ': 20, 'ל': 30, 'מ': 40, 'נ': 50, 'ס': 60, 'ע': 70, 'פ': 80, 'צ': 90,
-    'ק': 100, 'ר': 200, 'ש': 300, 'ת': 400
+    'ק': 100, 'ר': 200, 'ש': 300, 'ת': 400,
+    'ך': 20, 'ם': 40, 'ן': 50, 'ף': 80, 'ץ': 90
 }
 
 def hebrew_to_int(hebrew_str):
@@ -32,38 +33,38 @@ BOOK_MAPPING = {
     "נחמיה": "Nehemiah", "דברי הימים א": "I Chronicles", "דברי הימים ב": "II Chronicles"
 }
 
-# חלוקת ספר תהילים לפי יום בחודש העברי (1-30)
+# מיפוי מפורט של פרקי התהילים לפי ימי החודש העברי (1-30)
 TEHILLIM_DAILY_MAP = {
-    1: "פרקים א' - ט'",
-    2: "פרקים י' - י\"ז",
-    3: "פרקים י\"ח - כ\"ב",
-    4: "פרקים כ\"ג - כ\"ח",
-    5: "פרקים כ\"ט - ל\"ד",
-    6: "פרקים ל\"ה - ל\"ח",
-    7: "פרקים ל\"ט - מ\"ג",
-    8: "פרקים מ\"ד - מ\"ח",
-    9: "פרקים מ\"ט - נ\"ד",
-    10: "פרקים נ\"ה - נ\"ט",
-    11: "פרקים ס' - ס\"ה",
-    12: "פרקים ס\"ו - ס\"ח",
-    13: "פרקים ס\"ט - ע\"א",
-    14: "פרקים ע\"ב - ע\"ו",
-    15: "פרקים ע\"ז - ע\"ח",
-    16: "פרקים ע\"ט - פ\"ב",
-    17: "פרקים פ\"ג - פ\"ז",
-    18: "פרקים פ\"ח - פ\"ט",
-    19: "פרקים צ' - צ\"ו",
-    20: "פרקים צ\"ז - ק\"ג",
-    21: "פרקים ק\"ד - ק\"ה",
-    22: "פרקים ק\"ו - ק\"ז",
-    23: "פרקים ק\"ח - קי\"ב",
-    24: "פרקים קי\"ג - קי\"ח",
-    25: "פרק קי\"ט (פסוקים א' - צ\"ו)",
-    26: "פרק קי\"ט (פסוקים צ\"ז - קע\"ו)",
-    27: "פרקים קכ' - קל\"ד",
-    28: "פרקים קל\"ה - קל\"ט",
-    29: "פרקים קמ' - קמ\"ד",
-    30: "פרקים קמ\"ה - קנ'"
+    1: {"label": "פרקים א' - ט'", "chapters": list(range(1, 10)), "v_range": None},
+    2: {"label": "פרקים י' - י\"ז", "chapters": list(range(10, 18)), "v_range": None},
+    3: {"label": "פרקים י\"ח - כ\"ב", "chapters": list(range(18, 23)), "v_range": None},
+    4: {"label": "פרקים כ\"ג - כ\"ח", "chapters": list(range(23, 29)), "v_range": None},
+    5: {"label": "פרקים כ\"ט - ל\"ד", "chapters": list(range(29, 35)), "v_range": None},
+    6: {"label": "פרקים ל\"ה - ל\"ח", "chapters": list(range(35, 39)), "v_range": None},
+    7: {"label": "פרקים ל\"ט - מ\"ג", "chapters": list(range(39, 44)), "v_range": None},
+    8: {"label": "פרקים מ\"ד - מ\"ח", "chapters": list(range(44, 49)), "v_range": None},
+    9: {"label": "פרקים מ\"ט - נ\"ד", "chapters": list(range(49, 55)), "v_range": None},
+    10: {"label": "פרקים נ\"ה - נ\"ט", "chapters": list(range(55, 60)), "v_range": None},
+    11: {"label": "פרקים ס' - ס\"ה", "chapters": list(range(60, 66)), "v_range": None},
+    12: {"label": "פרקים ס\"ו - ס\"ח", "chapters": list(range(66, 69)), "v_range": None},
+    13: {"label": "פרקים ס\"ט - ע\"א", "chapters": list(range(69, 72)), "v_range": None},
+    14: {"label": "פרקים ע\"ב - ע\"ו", "chapters": list(range(72, 77)), "v_range": None},
+    15: {"label": "פרקים ע\"ז - ע\"ח", "chapters": list(range(77, 79)), "v_range": None},
+    16: {"label": "פרקים ע\"ט - פ\"ב", "chapters": list(range(79, 83)), "v_range": None},
+    17: {"label": "פרקים פ\"ג - פ\"ז", "chapters": list(range(83, 88)), "v_range": None},
+    18: {"label": "פרקים פ\"ח - פ\"ט", "chapters": list(range(88, 90)), "v_range": None},
+    19: {"label": "פרקים צ' - צ\"ו", "chapters": list(range(90, 97)), "v_range": None},
+    20: {"label": "פרקים צ\"ז - ק\"ג", "chapters": list(range(97, 104)), "v_range": None},
+    21: {"label": "פרקים ק\"ד - ק\"ה", "chapters": list(range(104, 106)), "v_range": None},
+    22: {"label": "פרקים ק\"ו - ק\"ז", "chapters": list(range(106, 108)), "v_range": None},
+    23: {"label": "פרקים ק\"ח - קי\"ב", "chapters": list(range(108, 113)), "v_range": None},
+    24: {"label": "פרקים קי\"ג - קי\"ח", "chapters": list(range(113, 119)), "v_range": None},
+    25: {"label": "פרק קי\"ט (פסוקים א' - צ\"ו)", "chapters": [119], "v_range": (1, 96)},
+    26: {"label": "פרק קי\"ט (פסוקים צ\"ז - קע\"ו)", "chapters": [119], "v_range": (97, 176)},
+    27: {"label": "פרקים קכ' - קל\"ד", "chapters": list(range(120, 135)), "v_range": None},
+    28: {"label": "פרקים קל\"ה - קל\"ט", "chapters": list(range(135, 140)), "v_range": None},
+    29: {"label": "פרקים קמ' - קמ\"ד", "chapters": list(range(140, 145)), "v_range": None},
+    30: {"label": "פרקים קמ\"ה - קנ'", "chapters": list(range(145, 151)), "v_range": None}
 }
 
 def clean_text(text):
@@ -74,29 +75,17 @@ def clean_text(text):
     cleaned = re.sub(r'\s+', ' ', cleaned)
     return cleaned.strip()
 
-# פונקציה שמביאה את התאריך העברי ואת פרקי התהילים של היום
-def get_today_hebrew_info():
-    try:
-        url = "https://www.hebcal.com/converter?cfg=json&g2h=1"
-        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-        with urllib.request.urlopen(req, timeout=3) as response:
-            data = json.loads(response.read().decode('utf-8'))
-            day = data.get('hd', 1)
-            hebrew_date_str = data.get('hebrew', 'יום בחודש העברי')
-            tehillim_portion = TEHILLIM_DAILY_MAP.get(day, "פרקים א' - ט'")
-            return hebrew_date_str, tehillim_portion
-    except Exception as e:
-        print(f"שגיאה במשיכת תאריך עברי: {e}")
-        return "התאריך העברי של היום", "פרקים א' - ט'"
-
+# אינדוקס כפול: גם לפי מפתח אותיות וגם מילון מובנה לספר תהילים
 def load_and_index_tanach(file_path='Tanach.html'):
     index = {}
+    tehillim_by_chapter = {} # ch_int -> list of {v_int, v_heb, text}
+
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
             html_content = f.read()
     except FileNotFoundError:
         print(f"שגיאה: הקובץ '{file_path}' לא נמצא בתיקייה.")
-        return {}
+        return {}, {}
 
     pattern = r'\[([^\]]+)\]([^\[]+)'
     matches = re.findall(pattern, html_content)
@@ -114,6 +103,18 @@ def load_and_index_tanach(file_path='Tanach.html'):
 
         verse_text = re.sub(r'<[^>]*>', '', verse_text)
         verse_text = re.sub(r'\{[פסש]\}\s*$', '', verse_text).strip()
+
+        # אם מדובר בספר תהילים - שמור במילון התהילים המהיר
+        if book_name == "תהילים":
+            ch_int = hebrew_to_int(chapter_num)
+            v_int = hebrew_to_int(verse_num)
+            if ch_int not in tehillim_by_chapter:
+                tehillim_by_chapter[ch_int] = []
+            tehillim_by_chapter[ch_int].append({
+                'verse_int': v_int,
+                'verse_heb': verse_num,
+                'text': verse_text
+            })
 
         pure_text = clean_text(verse_text)
         if not pure_text:
@@ -134,11 +135,49 @@ def load_and_index_tanach(file_path='Tanach.html'):
             index[key] = []
         index[key].append(verse_info)
 
-    return index
+    return index, tehillim_by_chapter
 
 print("מאנדקס את כל כ\"ד ספרי התנ\"ך...")
-tanach_index = load_and_index_tanach()
+tanach_index, tehillim_db = load_and_index_tanach()
 print("האינדוקס הושלם!")
+
+# פונקציה לשליפת הנתונים והטקסט של התהילים היומי
+def get_today_tehillim_info():
+    try:
+        url = "https://www.hebcal.com/converter?cfg=json&g2h=1"
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req, timeout=3) as response:
+            data = json.loads(response.read().decode('utf-8'))
+            day = data.get('hd', 1)
+            hebrew_date_str = data.get('hebrew', 'יום בחודש העברי')
+    except Exception as e:
+        print(f"שגיאה במשיכת תאריך עברי: {e}")
+        day = 1
+        hebrew_date_str = "יום בחודש העברי"
+
+    daily_info = TEHILLIM_DAILY_MAP.get(day, TEHILLIM_DAILY_MAP[1])
+    portion_label = daily_info["label"]
+    chapters = daily_info["chapters"]
+    v_range = daily_info["v_range"]
+
+    content = []
+    for ch in chapters:
+        raw_verses = tehillim_db.get(ch, [])
+        filtered_verses = []
+        for v in raw_verses:
+            if v_range:
+                if v_range[0] <= v['verse_int'] <= v_range[1]:
+                    filtered_verses.append(v)
+            else:
+                filtered_verses.append(v)
+        
+        if filtered_verses:
+            content.append({
+                'chapter': ch,
+                'verses': filtered_verses
+            })
+
+    return hebrew_date_str, portion_label, content
 
 @app.route('/get_commentary')
 def get_commentary():
@@ -202,17 +241,52 @@ HTML_TEMPLATE = """
         h1 { text-align: center; color: #2c3e50; margin-bottom: 5px; font-size: 24px; }
         h2 { text-align: center; color: #7f8c8d; font-size: 14px; margin-bottom: 20px; font-weight: normal; }
         
-        /* עיצוב כרטיסיית התהילים היומי */
+        /* כרטיסיית התהילים היומי */
         .daily-tehillim-card {
             background: #f0f7ff;
             border: 1px solid #cce3f9;
             border-radius: 10px;
-            padding: 15px;
+            padding: 18px;
             text-align: center;
             margin-bottom: 25px;
         }
-        .daily-date { font-size: 13px; color: #2980b9; font-weight: bold; margin-bottom: 3px; }
-        .daily-portion { font-size: 17px; color: #2c3e50; font-weight: bold; }
+        .daily-date { font-size: 13px; color: #2980b9; font-weight: bold; margin-bottom: 4px; }
+        .daily-portion { font-size: 17px; color: #2c3e50; font-weight: bold; margin-bottom: 10px; }
+        
+        .toggle-tehillim-btn {
+            background-color: #2980b9;
+            color: white;
+            border: none;
+            padding: 9px 18px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+        .toggle-tehillim-btn:hover { background-color: #1f6391; }
+
+        .daily-tehillim-content {
+            margin-top: 15px;
+            text-align: right;
+            background: #ffffff;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #d0e3f0;
+            max-height: 400px;
+            overflow-y: auto;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.03);
+        }
+        .tehillim-chapter-title {
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 4px;
+            margin-top: 15px;
+            margin-bottom: 10px;
+            font-size: 18px;
+        }
+        .tehillim-chapter-text { font-size: 16px; line-height: 1.8; color: #2c3e50; }
+        .v-num { color: #e67e22; font-weight: bold; font-size: 14px; }
 
         .search-form { display: flex; gap: 10px; margin-bottom: 30px; }
         input[type="text"] { flex: 1; padding: 12px 15px; border: 2px solid #ccc; border-radius: 8px; font-size: 16px; outline: none; }
@@ -245,6 +319,18 @@ HTML_TEMPLATE = """
     <div class="daily-tehillim-card">
         <div class="daily-date">📅 תהילים יומי - {{ today_hebrew_date }}</div>
         <div class="daily-portion">הפרקים להיום: {{ today_tehillim_portion }}</div>
+        <button type="button" class="toggle-tehillim-btn" onclick="toggleDailyTehillim()">📖 הצג את פרקי התהילים של היום</button>
+        
+        <div id="daily-tehillim-text-box" class="daily-tehillim-content" style="display: none;">
+            {% for ch_data in today_tehillim_content %}
+                <div class="tehillim-chapter-title">פרק {{ ch_data.chapter }}</div>
+                <div class="tehillim-chapter-text">
+                    {% for v in ch_data.verses %}
+                        <span class="v-num">({{ v.verse_heb }})</span> {{ v.text }} &nbsp;
+                    {% endfor %}
+                </div>
+            {% endfor %}
+        </div>
     </div>
     
     <form class="search-form" method="POST" action="/">
@@ -263,7 +349,15 @@ HTML_TEMPLATE = """
                     <div class="action-buttons">
                         <button type="button" class="toggle-btn" onclick="loadCommentary(this, '{{ item.book }}', '{{ item.chapter }}', '{{ item.verse }}')">📜 הצג פירוש רש"י</button>
                         
-                        <button type="button" class="whatsapp-btn" onclick="shareWhatsApp({{ user_input|tojson }}, {{ item.text|tojson }}, {{ item.book|tojson }}, {{ item.chapter|tojson }}, {{ item.verse|tojson }})">💬 שלח לחבר בוואטסאפ</button>
+                        <button type="button" class="whatsapp-btn" 
+                                data-name="{{ user_input }}" 
+                                data-text="{{ item.text }}" 
+                                data-book="{{ item.book }}" 
+                                data-chapter="{{ item.chapter }}" 
+                                data-verse="{{ item.verse }}" 
+                                onclick="shareWhatsApp(this)">
+                            💬 שלח לחבר בוואטסאפ
+                        </button>
                     </div>
 
                     <div class="commentary-box"></div>
@@ -276,9 +370,27 @@ HTML_TEMPLATE = """
 </div>
 
 <script>
-function shareWhatsApp(name, text, book, chapter, verse) {
+function toggleDailyTehillim() {
+    const box = document.getElementById('daily-tehillim-text-box');
+    const btn = document.querySelector('.toggle-tehillim-btn');
+    if (box.style.display === 'none' || box.style.display === '') {
+        box.style.display = 'block';
+        btn.innerText = '📖 הסתר את פרקי התהילים של היום';
+    } else {
+        box.style.display = 'none';
+        btn.innerText = '📖 הצג את פרקי התהילים של היום';
+    }
+}
+
+function shareWhatsApp(btn) {
+    const name = btn.getAttribute('data-name');
+    const text = btn.getAttribute('data-text');
+    const book = btn.getAttribute('data-book');
+    const chapter = btn.getAttribute('data-chapter');
+    const verse = btn.getAttribute('data-verse');
+    
     const msg = `היי ${name}! 👋\nמצאתי את הפסוק שלך בתנ"ך:\n\n"${text}"\n(${book} פרק ${chapter}, פסוק ${verse})`;
-    const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`;
+    const url = `https://wa.me/?text=${encodeURIComponent(msg)}`;
     window.open(url, '_blank');
 }
 
@@ -326,8 +438,8 @@ def home():
     start_letter = ""
     end_letter = ""
 
-    # שליפת התאריך העברי והחלוקה היומית של התהילים
-    today_hebrew_date, today_tehillim_portion = get_today_hebrew_info()
+    # שליפת התאריך, הכותרת והתוכן המלא של פרקי התהילים להיום
+    today_hebrew_date, today_tehillim_portion, today_tehillim_content = get_today_tehillim_info()
 
     if request.method == 'POST':
         user_input = request.form.get('name', '').strip()
@@ -347,7 +459,8 @@ def home():
         start_letter=start_letter, 
         end_letter=end_letter,
         today_hebrew_date=today_hebrew_date,
-        today_tehillim_portion=today_tehillim_portion
+        today_tehillim_portion=today_tehillim_portion,
+        today_tehillim_content=today_tehillim_content
     )
 
 if __name__ == '__main__':
