@@ -264,7 +264,7 @@ def add_prayer():
         return jsonify({'status': 'success', 'message': 'השם נוסף בהצלחה לתפילה!'})
     
     return jsonify({'status': 'error', 'message': 'אנא מלא את כל השדות'}), 400
-    
+
 @app.route('/get_random_prayer')
 def get_random_prayer():
     if not PRAYER_DATABASE:
@@ -330,11 +330,33 @@ HTML_TEMPLATE = """
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>מציאת פסוק לפי שם - כל התנ"ך</title>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background-color: #f4f6f9; color: #333; margin: 0; padding: 20px; }
-        .container { max-width: 680px; margin: 40px auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        /* איפוס גדלים למניעת חריגה מהמסך בכל המכשירים */
+        * {
+            box-sizing: border-box;
+        }
+
+        body { 
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; 
+            background-color: #f4f6f9; 
+            color: #333; 
+            margin: 0; 
+            padding: 15px; 
+        }
+        
+        .container { 
+            max-width: 680px; 
+            margin: 20px auto; 
+            background: white; 
+            padding: 25px; 
+            border-radius: 12px; 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05); 
+            width: 100%;
+        }
+        
         h1 { text-align: center; color: #2c3e50; margin-bottom: 5px; font-size: 24px; }
         h2 { text-align: center; color: #7f8c8d; font-size: 14px; margin-bottom: 20px; font-weight: normal; }
         
+        /* כרטיסיית תהילים יומי */
         .daily-tehillim-card {
             background: #f0f7ff;
             border: 1px solid #cce3f9;
@@ -350,12 +372,14 @@ HTML_TEMPLATE = """
             background-color: #2980b9;
             color: white;
             border: none;
-            padding: 9px 18px;
+            padding: 10px 18px;
             border-radius: 6px;
             cursor: pointer;
             font-weight: bold;
             font-size: 14px;
             transition: background 0.2s;
+            width: 100%;
+            max-width: 300px;
         }
         .toggle-tehillim-btn:hover { background-color: #1f6391; }
 
@@ -363,7 +387,7 @@ HTML_TEMPLATE = """
             margin-top: 15px;
             text-align: right;
             background: #ffffff;
-            padding: 20px;
+            padding: 15px;
             border-radius: 8px;
             border: 1px solid #d0e3f0;
             max-height: 400px;
@@ -382,7 +406,7 @@ HTML_TEMPLATE = """
         .tehillim-chapter-text { font-size: 16px; line-height: 1.8; color: #2c3e50; }
         .v-num { color: #e67e22; font-weight: bold; font-size: 14px; }
 
-        /* עיצוב אזור השמות לתפילה */
+        /* אזור שמות לתפילה */
         .prayer-card {
             background: #fffdf5;
             border: 1px solid #f3e5ab;
@@ -392,14 +416,22 @@ HTML_TEMPLATE = """
             box-shadow: 0 2px 8px rgba(0,0,0,0.03);
         }
         .prayer-title { text-align: center; font-size: 18px; font-weight: bold; color: #8e6d05; margin-bottom: 15px; }
-        .prayer-form-grid { display: grid; grid-template-columns: 2fr 1fr 2fr; gap: 10px; margin-bottom: 12px; }
+        
+        .prayer-form-grid { 
+            display: grid; 
+            grid-template-columns: 2fr 1fr 2fr; 
+            gap: 10px; 
+            margin-bottom: 12px; 
+        }
+        
         .prayer-form-full { display: flex; flex-direction: column; gap: 10px; margin-bottom: 15px; }
         
         .prayer-input, .prayer-select {
-            padding: 10px 12px;
+            width: 100%;
+            padding: 12px;
             border: 1px solid #dcd0a4;
             border-radius: 6px;
-            font-size: 14px;
+            font-size: 15px;
             outline: none;
             background: white;
         }
@@ -410,12 +442,13 @@ HTML_TEMPLATE = """
             background-color: #27ae60;
             color: white;
             border: none;
-            padding: 10px 16px;
+            padding: 12px 16px;
             border-radius: 6px;
-            font-size: 14px;
+            font-size: 15px;
             font-weight: bold;
             cursor: pointer;
             flex: 1;
+            min-width: 140px;
         }
         .add-prayer-btn:hover { background-color: #219653; }
 
@@ -423,13 +456,15 @@ HTML_TEMPLATE = """
             background-color: #8e44ad;
             color: white;
             border: none;
-            padding: 10px 16px;
+            padding: 12px 16px;
             border-radius: 6px;
             font-size: 14px;
             font-weight: bold;
             cursor: pointer;
             flex: 2;
+            min-width: 200px;
             transition: background 0.2s;
+            line-height: 1.4;
         }
         .raffle-btn:hover { background-color: #71368a; }
 
@@ -446,10 +481,11 @@ HTML_TEMPLATE = """
         .raffle-result-name { font-size: 20px; color: #4a235a; font-weight: bold; margin-bottom: 5px; }
         .raffle-result-reason { font-size: 15px; color: #7d3c98; }
 
+        /* טופס חיפוש פסוקים */
         .search-form { display: flex; gap: 10px; margin-bottom: 30px; }
-        input[type="text"].search-input { flex: 1; padding: 12px 15px; border: 2px solid #ccc; border-radius: 8px; font-size: 16px; outline: none; }
+        input[type="text"].search-input { flex: 1; padding: 12px 15px; border: 2px solid #ccc; border-radius: 8px; font-size: 16px; outline: none; width: 100%; }
         input[type="text"].search-input:focus { border-color: #3498db; }
-        button[type="submit"].search-btn { padding: 12px 25px; background-color: #3498db; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; }
+        button[type="submit"].search-btn { padding: 12px 25px; background-color: #3498db; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; white-space: nowrap; }
         button[type="submit"].search-btn:hover { background-color: #2980b9; }
         
         .results-info { font-weight: bold; margin-bottom: 15px; color: #7f8c8d; }
@@ -458,14 +494,53 @@ HTML_TEMPLATE = """
         .verse-text { font-size: 18px; line-height: 1.6; color: #2c3e50; font-weight: 600; }
         
         .action-buttons { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
-        .toggle-btn { background: #f39c12; color: white; border: none; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: bold; }
+        .toggle-btn { background: #f39c12; color: white; border: none; padding: 10px 14px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: bold; }
         .toggle-btn:hover { background: #d35400; }
         
-        .whatsapp-btn { background: #25D366; color: white; border: none; padding: 8px 14px; border-radius: 6px; font-size: 14px; font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; }
+        .whatsapp-btn { background: #25D366; color: white; border: none; padding: 10px 14px; border-radius: 6px; font-size: 14px; font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
         .whatsapp-btn:hover { background: #128C7E; }
 
         .commentary-box { margin-top: 10px; padding: 12px; background-color: #fcf8e3; border: 1px solid #faebcc; border-radius: 6px; font-size: 14px; color: #8a6d3b; display: none; line-height: 1.5; }
         .no-results { text-align: center; color: #e74c3c; font-size: 16px; margin-top: 20px; }
+
+        /* --- התאמה מיוחדת למסכי מובייל (Media Queries) --- */
+        @media (max-width: 600px) {
+            body { padding: 8px; }
+            .container { padding: 15px; margin: 10px auto; border-radius: 10px; }
+            
+            h1 { font-size: 20px; }
+            h2 { font-size: 13px; }
+
+            /* סידור שדות התפילה בטור בנייד */
+            .prayer-form-grid {
+                grid-template-columns: 1fr;
+                gap: 8px;
+            }
+
+            /* כפתורים ברוחב מלא בטלפון */
+            .prayer-buttons-container {
+                flex-direction: column;
+            }
+            .add-prayer-btn, .raffle-btn {
+                width: 100%;
+                text-align: center;
+            }
+
+            .search-form {
+                flex-direction: column;
+                gap: 8px;
+            }
+            button[type="submit"].search-btn {
+                width: 100%;
+            }
+
+            .action-buttons {
+                flex-direction: column;
+            }
+            .toggle-btn, .whatsapp-btn {
+                width: 100%;
+            }
+        }
     </style>
 </head>
 <body>
@@ -508,11 +583,12 @@ HTML_TEMPLATE = """
                 <select id="pReason" class="prayer-select" onchange="toggleCustomReason()" required>
                     <option value="" disabled selected>--- בחר/י תפילה ל: ---</option>
                     <option value="זיווג הגון">זיווג הגון</option>
+                    <option value="לידה קלה">לידה קלה</option>
                     <option value="פרנסה בשפע">פרנסה בשפע</option>
                     <option value="גאולה וישועה">גאולה וישועה</option>
                     <option value="בריאות">בריאות</option>
                     <option value="רפואה שלמה">רפואה שלמה</option>
-                    <option value="התפתחות תקינה ונחת להוריהם">התפתחות תקינה ונחת להוריהם</option>
+                    <option value="התפתחות תקינה ונחת להוריו/ה">התפתחות תקינה ונחת להוריו/ה</option>
                     <option value="פרי בטן">פרי בטן</option>
                     <option value="שפע ברכה והצלחה בכל מעשה ידיו/ה">שפע ברכה והצלחה בכל מעשה ידיו/ה</option>
                     <option value="הצלחת השליחות הגשמית והרוחנית שלו/ה בעולם">הצלחת השליחות הגשמית והרוחנית שלו/ה בעולם</option>
