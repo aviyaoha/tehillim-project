@@ -7,6 +7,7 @@ import json
 
 app = Flask(__name__)
 
+# המרת אותיות עבריות (גימטריה) למספרים עבור ה-API של ספריא
 HEBREW_NUMERALS = {
     'א': 1, 'ב': 2, 'ג': 3, 'ד': 4, 'ה': 5, 'ו': 6, 'ז': 7, 'ח': 8, 'ט': 9,
     'י': 10, 'כ': 20, 'ל': 30, 'מ': 40, 'נ': 50, 'ס': 60, 'ע': 70, 'פ': 80, 'צ': 90,
@@ -31,6 +32,40 @@ BOOK_MAPPING = {
     "נחמיה": "Nehemiah", "דברי הימים א": "I Chronicles", "דברי הימים ב": "II Chronicles"
 }
 
+# חלוקת ספר תהילים לפי יום בחודש העברי (1-30)
+TEHILLIM_DAILY_MAP = {
+    1: "פרקים א' - ט'",
+    2: "פרקים י' - י\"ז",
+    3: "פרקים י\"ח - כ\"ב",
+    4: "פרקים כ\"ג - כ\"ח",
+    5: "פרקים כ\"ט - ל\"ד",
+    6: "פרקים ל\"ה - ל\"ח",
+    7: "פרקים ל\"ט - מ\"ג",
+    8: "פרקים מ\"ד - מ\"ח",
+    9: "פרקים מ\"ט - נ\"ד",
+    10: "פרקים נ\"ה - נ\"ט",
+    11: "פרקים ס' - ס\"ה",
+    12: "פרקים ס\"ו - ס\"ח",
+    13: "פרקים ס\"ט - ע\"א",
+    14: "פרקים ע\"ב - ע\"ו",
+    15: "פרקים ע\"ז - ע\"ח",
+    16: "פרקים ע\"ט - פ\"ב",
+    17: "פרקים פ\"ג - פ\"ז",
+    18: "פרקים פ\"ח - פ\"ט",
+    19: "פרקים צ' - צ\"ו",
+    20: "פרקים צ\"ז - ק\"ג",
+    21: "פרקים ק\"ד - ק\"ה",
+    22: "פרקים ק\"ו - ק\"ז",
+    23: "פרקים ק\"ח - קי\"ב",
+    24: "פרקים קי\"ג - קי\"ח",
+    25: "פרק קי\"ט (פסוקים א' - צ\"ו)",
+    26: "פרק קי\"ט (פסוקים צ\"ז - קע\"ו)",
+    27: "פרקים קכ' - קל\"ד",
+    28: "פרקים קל\"ה - קל\"ט",
+    29: "פרקים קמ' - קמ\"ד",
+    30: "פרקים קמ\"ה - קנ'"
+}
+
 def clean_text(text):
     cleaned = re.sub(r'[\u0591-\u05C7]', '', text)
     cleaned = re.sub(r'\([^)]*\)', '', cleaned)
@@ -38,6 +73,21 @@ def clean_text(text):
     cleaned = re.sub(r'[:\-\.\,"\';\{\}\[\]_]', '', cleaned)
     cleaned = re.sub(r'\s+', ' ', cleaned)
     return cleaned.strip()
+
+# פונקציה שמביאה את התאריך העברי ואת פרקי התהילים של היום
+def get_today_hebrew_info():
+    try:
+        url = "https://www.hebcal.com/converter?cfg=json&g2h=1"
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req, timeout=3) as response:
+            data = json.loads(response.read().decode('utf-8'))
+            day = data.get('hd', 1)
+            hebrew_date_str = data.get('hebrew', 'יום בחודש העברי')
+            tehillim_portion = TEHILLIM_DAILY_MAP.get(day, "פרקים א' - ט'")
+            return hebrew_date_str, tehillim_portion
+    except Exception as e:
+        print(f"שגיאה במשיכת תאריך עברי: {e}")
+        return "התאריך העברי של היום", "פרקים א' - ט'"
 
 def load_and_index_tanach(file_path='Tanach.html'):
     index = {}
@@ -150,12 +200,26 @@ HTML_TEMPLATE = """
         body { font-family: 'Segoe UI', sans-serif; background-color: #f4f6f9; color: #333; margin: 0; padding: 20px; }
         .container { max-width: 650px; margin: 40px auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
         h1 { text-align: center; color: #2c3e50; margin-bottom: 5px; font-size: 24px; }
-        h2 { text-align: center; color: #7f8c8d; font-size: 14px; margin-bottom: 30px; font-weight: normal; }
+        h2 { text-align: center; color: #7f8c8d; font-size: 14px; margin-bottom: 20px; font-weight: normal; }
+        
+        /* עיצוב כרטיסיית התהילים היומי */
+        .daily-tehillim-card {
+            background: #f0f7ff;
+            border: 1px solid #cce3f9;
+            border-radius: 10px;
+            padding: 15px;
+            text-align: center;
+            margin-bottom: 25px;
+        }
+        .daily-date { font-size: 13px; color: #2980b9; font-weight: bold; margin-bottom: 3px; }
+        .daily-portion { font-size: 17px; color: #2c3e50; font-weight: bold; }
+
         .search-form { display: flex; gap: 10px; margin-bottom: 30px; }
         input[type="text"] { flex: 1; padding: 12px 15px; border: 2px solid #ccc; border-radius: 8px; font-size: 16px; outline: none; }
         input[type="text"]:focus { border-color: #3498db; }
         button[type="submit"] { padding: 12px 25px; background-color: #3498db; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; }
         button[type="submit"]:hover { background-color: #2980b9; }
+        
         .results-info { font-weight: bold; margin-bottom: 15px; color: #7f8c8d; }
         .verse-card { background: #fdfefe; border-right: 4px solid #2ecc71; padding: 15px; margin-bottom: 15px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
         .verse-meta { font-size: 13px; color: #e67e22; font-weight: bold; margin-bottom: 5px; }
@@ -177,6 +241,12 @@ HTML_TEMPLATE = """
     <h1>מצא פסוק בתנ"ך לפי שם</h1>
     <h2>חיפוש מהיר בכל כ"ד הספרים</h2>
     
+    <!-- כרטיסיית התהילים היומי -->
+    <div class="daily-tehillim-card">
+        <div class="daily-date">📅 תהילים יומי - {{ today_hebrew_date }}</div>
+        <div class="daily-portion">הפרקים להיום: {{ today_tehillim_portion }}</div>
+    </div>
+    
     <form class="search-form" method="POST" action="/">
         <input type="text" name="name" placeholder="הכנס שם (למשל: שיר, אברהם...)" value="{{ user_input }}" required autocomplete="off">
         <button type="submit">חפש</button>
@@ -193,7 +263,6 @@ HTML_TEMPLATE = """
                     <div class="action-buttons">
                         <button type="button" class="toggle-btn" onclick="loadCommentary(this, '{{ item.book }}', '{{ item.chapter }}', '{{ item.verse }}')">📜 הצג פירוש רש"י</button>
                         
-                        <!-- כפתור שיתוף לוואטסאפ מבוסס JS למניעת תקלות מילוט -->
                         <button type="button" class="whatsapp-btn" onclick="shareWhatsApp({{ user_input|tojson }}, {{ item.text|tojson }}, {{ item.book|tojson }}, {{ item.chapter|tojson }}, {{ item.verse|tojson }})">💬 שלח לחבר בוואטסאפ</button>
                     </div>
 
@@ -257,6 +326,9 @@ def home():
     start_letter = ""
     end_letter = ""
 
+    # שליפת התאריך העברי והחלוקה היומית של התהילים
+    today_hebrew_date, today_tehillim_portion = get_today_hebrew_info()
+
     if request.method == 'POST':
         user_input = request.form.get('name', '').strip()
         cleaned_name = clean_text(user_input)
@@ -267,8 +339,16 @@ def home():
             end_letter = cleaned_name[-1]
             results = tanach_index.get((start_letter, end_letter), [])
 
-    return render_template_string(HTML_TEMPLATE, results=results, user_input=user_input, 
-                                  searched=searched, start_letter=start_letter, end_letter=end_letter)
+    return render_template_string(
+        HTML_TEMPLATE, 
+        results=results, 
+        user_input=user_input, 
+        searched=searched, 
+        start_letter=start_letter, 
+        end_letter=end_letter,
+        today_hebrew_date=today_hebrew_date,
+        today_tehillim_portion=today_tehillim_portion
+    )
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
