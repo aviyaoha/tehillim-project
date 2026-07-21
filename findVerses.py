@@ -9,7 +9,25 @@ import random
 app = Flask(__name__)
 
 # מסד נתונים זמני (בזיכרון) לשמות לתפילה
-PRAYER_DATABASE = []
+PRAYER_FILE = 'prayers.json'
+
+def load_prayers():
+    """טוען את השמות מתוך קובץ ה-JSON בעת עליית השרת"""
+    if os.path.exists(PRAYER_FILE):
+        try:
+            with open(PRAYER_FILE, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except Exception:
+            return []
+    return []
+
+def save_prayers(prayers):
+    """שומר את השמות המעודכנים בחזרה לקובץ"""
+    with open(PRAYER_FILE, 'w', encoding='utf-8') as f:
+        json.dump(prayers, f, ensure_ascii=False, indent=2)
+
+# טעינת הנתונים בעת הפעלת האפליקציה
+PRAYER_DATABASE = load_prayers()
 
 # המרת אותיות עבריות (גימטריה) למספרים
 HEBREW_NUMERALS = {
@@ -239,10 +257,14 @@ def add_prayer():
             'mother_name': mother_name,
             'reason': reason
         })
+        
+        # שמירת הרשימה המעודכנת לקובץ ה-JSON
+        save_prayers(PRAYER_DATABASE)
+        
         return jsonify({'status': 'success', 'message': 'השם נוסף בהצלחה לתפילה!'})
     
     return jsonify({'status': 'error', 'message': 'אנא מלא את כל השדות'}), 400
-
+    
 @app.route('/get_random_prayer')
 def get_random_prayer():
     if not PRAYER_DATABASE:
