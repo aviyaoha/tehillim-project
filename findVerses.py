@@ -7,7 +7,7 @@ import json
 
 app = Flask(__name__)
 
-# המרת אותיות עבריות (גימטריה) למספרים
+# המרת אותיות עבריות (גימטריה) למספרים עבור ה-API של ספריא
 HEBREW_NUMERALS = {
     'א': 1, 'ב': 2, 'ג': 3, 'ד': 4, 'ה': 5, 'ו': 6, 'ז': 7, 'ח': 8, 'ט': 9,
     'י': 10, 'כ': 20, 'ל': 30, 'מ': 40, 'נ': 50, 'ס': 60, 'ע': 70, 'פ': 80, 'צ': 90,
@@ -22,6 +22,47 @@ def hebrew_to_int(hebrew_str):
             total += HEBREW_NUMERALS[char]
     return total if total > 0 else 1
 
+# פונקציה להמרת מספרים לאותיות עבריות (גימטריה)
+def int_to_hebrew(num):
+    if not isinstance(num, int) or num <= 0:
+        return str(num)
+        
+    hebrew_letters = []
+    
+    # מאות
+    h = num // 100
+    if h > 0:
+        hundreds_map = {1: 'ק', 2: 'ר', 3: 'ש', 4: 'ת'}
+        hebrew_letters.append(hundreds_map.get(h, ''))
+        num %= 100
+        
+    # עשרות ויחידות
+    if num == 15:
+        hebrew_letters.append('ט')
+        hebrew_letters.append('ו')
+    elif num == 16:
+        hebrew_letters.append('ט')
+        hebrew_letters.append('ז')
+    else:
+        t = (num // 10) * 10
+        u = num % 10
+        tens_map = {10: 'י', 20: 'כ', 30: 'ל', 40: 'מ', 50: 'נ', 60: 'ס', 70: 'ע', 80: 'פ', 90: 'צ'}
+        units_map = {1: 'א', 2: 'ב', 3: 'ג', 4: 'ד', 5: 'ה', 6: 'ו', 7: 'ז', 8: 'ח', 9: 'ט'}
+        
+        if t in tens_map:
+            hebrew_letters.append(tens_map[t])
+        if u in units_map:
+            hebrew_letters.append(units_map[u])
+            
+    raw_str = "".join(hebrew_letters)
+    if not raw_str:
+        return str(num)
+        
+    if len(raw_str) == 1:
+        return raw_str + "'"
+    else:
+        return raw_str[:-1] + '"' + raw_str[-1]
+
 BOOK_MAPPING = {
     "בראשית": "Genesis", "שמות": "Exodus", "ויקרא": "Leviticus", "במדבר": "Numbers", "דברים": "Deuteronomy",
     "יהושע": "Joshua", "שופטים": "Judges", "שמואל א": "I Samuel", "שמואל ב": "II Samuel",
@@ -33,7 +74,6 @@ BOOK_MAPPING = {
     "נחמיה": "Nehemiah", "דברי הימים א": "I Chronicles", "דברי הימים ב": "II Chronicles"
 }
 
-# מיפוי מפורט של פרקי התהילים לפי ימי החודש העברי (1-30)
 TEHILLIM_DAILY_MAP = {
     1: {"label": "פרקים א' - ט'", "chapters": list(range(1, 10)), "v_range": None},
     2: {"label": "פרקים י' - י\"ז", "chapters": list(range(10, 18)), "v_range": None},
@@ -75,10 +115,9 @@ def clean_text(text):
     cleaned = re.sub(r'\s+', ' ', cleaned)
     return cleaned.strip()
 
-# אינדוקס כפול: גם לפי מפתח אותיות וגם מילון מובנה לספר תהילים
 def load_and_index_tanach(file_path='Tanach.html'):
     index = {}
-    tehillim_by_chapter = {} # ch_int -> list of {v_int, v_heb, text}
+    tehillim_by_chapter = {}
 
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
@@ -104,7 +143,6 @@ def load_and_index_tanach(file_path='Tanach.html'):
         verse_text = re.sub(r'<[^>]*>', '', verse_text)
         verse_text = re.sub(r'\{[פסש]\}\s*$', '', verse_text).strip()
 
-        # אם מדובר בספר תהילים - שמור במילון התהילים המהיר
         if book_name == "תהילים":
             ch_int = hebrew_to_int(chapter_num)
             v_int = hebrew_to_int(verse_num)
@@ -141,7 +179,6 @@ print("מאנדקס את כל כ\"ד ספרי התנ\"ך...")
 tanach_index, tehillim_db = load_and_index_tanach()
 print("האינדוקס הושלם!")
 
-# פונקציה לשליפת הנתונים והטקסט של התהילים היומי
 def get_today_tehillim_info():
     try:
         url = "https://www.hebcal.com/converter?cfg=json&g2h=1"
@@ -173,7 +210,7 @@ def get_today_tehillim_info():
         
         if filtered_verses:
             content.append({
-                'chapter': ch,
+                'chapter_heb': int_to_hebrew(ch), # המרת מספר הפרק לאותיות עבריות
                 'verses': filtered_verses
             })
 
@@ -241,7 +278,6 @@ HTML_TEMPLATE = """
         h1 { text-align: center; color: #2c3e50; margin-bottom: 5px; font-size: 24px; }
         h2 { text-align: center; color: #7f8c8d; font-size: 14px; margin-bottom: 20px; font-weight: normal; }
         
-        /* כרטיסיית התהילים היומי */
         .daily-tehillim-card {
             background: #f0f7ff;
             border: 1px solid #cce3f9;
@@ -284,6 +320,7 @@ HTML_TEMPLATE = """
             margin-top: 15px;
             margin-bottom: 10px;
             font-size: 18px;
+            font-weight: bold;
         }
         .tehillim-chapter-text { font-size: 16px; line-height: 1.8; color: #2c3e50; }
         .v-num { color: #e67e22; font-weight: bold; font-size: 14px; }
@@ -315,7 +352,6 @@ HTML_TEMPLATE = """
     <h1>מצא פסוק בתנ"ך לפי שם</h1>
     <h2>חיפוש מהיר בכל כ"ד הספרים</h2>
     
-    <!-- כרטיסיית התהילים היומי -->
     <div class="daily-tehillim-card">
         <div class="daily-date">📅 תהילים יומי - {{ today_hebrew_date }}</div>
         <div class="daily-portion">הפרקים להיום: {{ today_tehillim_portion }}</div>
@@ -323,7 +359,7 @@ HTML_TEMPLATE = """
         
         <div id="daily-tehillim-text-box" class="daily-tehillim-content" style="display: none;">
             {% for ch_data in today_tehillim_content %}
-                <div class="tehillim-chapter-title">פרק {{ ch_data.chapter }}</div>
+                <div class="tehillim-chapter-title">פרק {{ ch_data.chapter_heb }}</div>
                 <div class="tehillim-chapter-text">
                     {% for v in ch_data.verses %}
                         <span class="v-num">({{ v.verse_heb }})</span> {{ v.text }} &nbsp;
@@ -438,7 +474,6 @@ def home():
     start_letter = ""
     end_letter = ""
 
-    # שליפת התאריך, הכותרת והתוכן המלא של פרקי התהילים להיום
     today_hebrew_date, today_tehillim_portion, today_tehillim_content = get_today_tehillim_info()
 
     if request.method == 'POST':
