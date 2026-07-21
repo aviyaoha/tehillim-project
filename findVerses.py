@@ -322,7 +322,14 @@ HTML_TEMPLATE = """
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>מציאת פסוק לפי שם - כל התנ"ך</title>
+    
+    <!-- כותרת הכרטיסייה בדפדפן -->
+    <title>קריאת תהלים יומית לזיכוי הרבים</title>
+
+    <!-- תגיות תצוגה מקדימה לשיתוף בוואטסאפ וברשתות חברתיות -->
+    <meta property="og:title" content="קריאת תהלים יומית לזיכוי הרבים">
+    <meta property="og:description" content="הצטרפו לקריאת תהילים יומית, הוספת שמות לתפילה ומציאת פסוקים לפי שם.">
+    <meta property="og:type" content="website">
     <style>
         /* איפוס גדלים למניעת חריגה מהמסך בכל המכשירים */
         * {
