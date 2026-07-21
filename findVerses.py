@@ -5,29 +5,16 @@ import urllib.request
 import urllib.parse
 import json
 import random
+from supabase import create_client, Client
 
 app = Flask(__name__)
 
 # מסד נתונים זמני (בזיכרון) לשמות לתפילה
-PRAYER_FILE = 'prayers.json'
 
-def load_prayers():
-    """טוען את השמות מתוך קובץ ה-JSON בעת עליית השרת"""
-    if os.path.exists(PRAYER_FILE):
-        try:
-            with open(PRAYER_FILE, 'r', encoding='utf-8') as f:
-                return json.load(f)
-        except Exception:
-            return []
-    return []
+SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://hnvgqfhgtdpwcnmtjjso.supabase.co")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "sb_publishable_4Kq3ScJoxWCe1DgGBLmQ6g_RluxZKlk")
 
-def save_prayers(prayers):
-    """שומר את השמות המעודכנים בחזרה לקובץ"""
-    with open(PRAYER_FILE, 'w', encoding='utf-8') as f:
-        json.dump(prayers, f, ensure_ascii=False, indent=2)
-
-# טעינת הנתונים בעת הפעלת האפליקציה
-PRAYER_DATABASE = load_prayers()
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # המרת אותיות עבריות (גימטריה) למספרים
 HEBREW_NUMERALS = {
@@ -251,28 +238,35 @@ def add_prayer():
         reason = " ".join(words)
 
     if first_name and mother_name and reason:
-        PRAYER_DATABASE.append({
-            'first_name': first_name,
-            'relation': relation,
-            'mother_name': mother_name,
-            'reason': reason
-        })
-        
-        # שמירת הרשימה המעודכנת לקובץ ה-JSON
-        save_prayers(PRAYER_DATABASE)
-        
-        return jsonify({'status': 'success', 'message': 'השם נוסף בהצלחה לתפילה!'})
+        try:
+            supabase.table('prayers').insert({
+                'first_name': first_name,
+                'relation': relation,
+                'mother_name': mother_name,
+                'reason': reason
+            }).execute()
+            
+            return jsonify({'status': 'success', 'message': 'השם נוסף בהצלחה לתפילה!'})
+        except Exception as e:
+            return jsonify({'status': 'error', 'message': 'שגיאה בשמירת הנתונים'}), 500
     
     return jsonify({'status': 'error', 'message': 'אנא מלא את כל השדות'}), 400
 
+
 @app.route('/get_random_prayer')
 def get_random_prayer():
-    if not PRAYER_DATABASE:
-        return jsonify({'status': 'empty', 'message': 'טרם הוכנסו שמות לתפילה. היה הראשון להוסיף שם!'})
-    
-    selected = random.choice(PRAYER_DATABASE)
-    return jsonify({'status': 'success', 'prayer': selected})
+    try:
+        response = supabase.table('prayers').select('*').execute()
+        prayers = response.data
 
+        if not prayers:
+            return jsonify({'status': 'empty', 'message': 'טרם הוכנסו שמות לתפילה. היה הראשון להוסיף שם!'})
+
+        selected = random.choice(prayers)
+        return jsonify({'status': 'success', 'prayer': selected})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': 'שגיאה בשליפת השם'}), 500
+        
 @app.route('/get_commentary')
 def get_commentary():
     book = request.args.get('book')
