@@ -1,4 +1,4 @@
-from flask import Flask, render_template_string, request
+from flask import Flask, render_template_string, request, jsonify
 import re
 import os
 import urllib.request
@@ -6,16 +6,30 @@ import json
 
 app = Flask(__name__)
 
-# מיפוי שמות ספרים מעברית לאנגלית עבור ה-API של Sefaria
+# המרת אותיות עבריות (גימטריה) למספרים עבור ה-API
+HEBREW_NUMERALS = {
+    'א': 1, 'ב': 2, 'ג': 3, 'ד': 4, 'ה': 5, 'ו': 6, 'ז': 7, 'ח': 8, 'ט': 9,
+    'י': 10, 'כ': 20, 'ל': 30, 'מ': 40, 'נ': 50, 'ס': 60, 'ע': 70, 'פ': 80, 'צ': 90,
+    'ק': 100, 'ר': 200, 'ש': 300, 'ת': 400
+}
+
+def hebrew_to_int(hebrew_str):
+    """ממיר אותיות עבריות (כמו 'קנ' או 'כב') למספר (כמו 150 או 22)"""
+    total = 0
+    for char in hebrew_str:
+        if char in HEBREW_NUMERALS:
+            total += HEBREW_NUMERALS[char]
+    return total
+
 BOOK_MAPPING = {
     "בראשית": "Genesis", "שמות": "Exodus", "ויקרא": "Leviticus", "במדבר": "Numbers", "דברים": "Deuteronomy",
-    "יהושע": "Joshua", "שופטים": "Judges", "שמואל א": "I Samuel", "שמואל ב": "II Samuel",
-    "מלכים א": "I Kings", "מלכים ב": "II Kings", "ישעיהו": "Isaiah", "ירמיהו": "Jeremiah", "יחזקאל": "Ezekiel",
+    "יהושע": "Joshua", "שופטים": "Judges", "שמואל א": "I_Samuel", "שמואל ב": "II_Samuel",
+    "מלכים א": "I_Kings", "מלכים ב": "II_Kings", "ישעיהו": "Isaiah", "ירמיהו": "Jeremiah", "יחזקאל": "Ezekiel",
     "הושע": "Hosea", "יואל": "Joel", "עמוס": "Amos", "עובדיה": "Obadiah", "יונה": "Jonah", "מיכה": "Micah",
     "נחום": "Nahum", "חבקוק": "Habakkuk", "צפניה": "Zephaniah", "חגי": "Haggai", "זכריה": "Zechariah", "מלאכי": "Malachi",
-    "תהילים": "Psalms", "משלי": "Proverbs", "איוב": "Job", "שיר השירים": "Song of Songs", "רות": "Ruth",
+    "תהילים": "Psalms", "משלי": "Proverbs", "איוב": "Job", "שיר השירים": "Song_of_Songs", "רות": "Ruth",
     "איכה": "Lamentations", "קהלת": "Ecclesiastes", "אסתר": "Esther", "דניאל": "Daniel", "עזרא": "Ezra",
-    "נחמיה": "Nehemiah", "דברי הימים א": "I Chronicles", "דברי הימים ב": "II Chronicles"
+    "נחמיה": "Nehemiah", "דברי הימים א": "I_Chronicles", "דברי הימים ב": "II_Chronicles"
 }
 
 def clean_text(text):
@@ -25,30 +39,6 @@ def clean_text(text):
     cleaned = re.sub(r'[:\-\.\,"\';\{\}\[\]_]', '', cleaned)
     cleaned = re.sub(r'\s+', ' ', cleaned)
     return cleaned.strip()
-
-# פונקציה שמביאה פירוש רש"י מ-API של Sefaria
-def get_rashi_commentary(book_hebrew, chapter, verse):
-    book_english = BOOK_MAPPING.get(book_hebrew)
-    if not book_english:
-        return None
-    
-    # הפיכת פרק ופסוק מאותיות במספרים (אם נדרש) או שימוש ישיר בערכים
-    try:
-        url = f"https://www.sefaria.org/api/texts/Rashi_on_{book_english}.{chapter}.{verse}?context=0"
-        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-        with urllib.request.urlopen(req, timeout=3) as response:
-            data = json.loads(response.read().decode('utf-8'))
-            hebrew_text = data.get('he', [])
-            if isinstance(hebrew_text, list) and hebrew_text:
-                # ניקוי תגיות HTML מתוך הפירוש
-                commentary = " ".join(hebrew_text)
-                return re.sub(r'<[^>]*>', '', commentary)
-            elif isinstance(hebrew_text, str) and hebrew_text:
-                return re.sub(r'<[^>]*>', '', hebrew_text)
-    except Exception as e:
-        print(f"שגיאה במשיכת פירוש: {e}")
-    
-    return "לא נמצא פירוש רש\"י לפסוק זה."
 
 def load_and_index_tanach(file_path='Tanach.html'):
     index = {}
@@ -101,6 +91,38 @@ print("מאנדקס את כל כ\"ד ספרי התנ\"ך...")
 tanach_index = load_and_index_tanach()
 print("האינדוקס הושלם!")
 
+# נקודת קצה לטעינת פירוש בלחיצה במידת הצורך (Ajax)
+@app.route('/get_commentary')
+def get_commentary():
+    book = request.args.get('book')
+    chapter = request.args.get('chapter')
+    verse = request.args.get('verse')
+
+    book_eng = BOOK_MAPPING.get(book)
+    if not book_eng:
+        return jsonify({'commentary': 'לא נמצא פירוש בספריא בספר זה.'})
+
+    # המרה למספרים
+    ch_num = hebrew_to_int(chapter) if not chapter.isdigit() else int(chapter)
+    v_num = hebrew_to_int(verse) if not verse.isdigit() else int(verse)
+
+    try:
+        url = f"https://www.sefaria.org/api/texts/Rashi_on_{book_eng}.{ch_num}.{v_num}?context=0"
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req, timeout=4) as response:
+            data = json.loads(response.read().decode('utf-8'))
+            hebrew_text = data.get('he', [])
+            
+            if isinstance(hebrew_text, list) and len(hebrew_text) > 0:
+                commentary = "<br>".join([re.sub(r'<[^>]*>', '', t) for t in hebrew_text if t])
+                return jsonify({'commentary': commentary if commentary else 'אין פירוש רש"י לפסוק זה.'})
+            elif isinstance(hebrew_text, str) and hebrew_text:
+                return jsonify({'commentary': re.sub(r'<[^>]*>', '', hebrew_text)})
+    except Exception as e:
+        print(f"Error fetching commentary: {e}")
+
+    return jsonify({'commentary': 'לא נמצא פירוש רש"י לפסוק זה.'})
+
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
@@ -123,18 +145,15 @@ HTML_TEMPLATE = """
         .verse-meta { font-size: 13px; color: #e67e22; font-weight: bold; margin-bottom: 5px; }
         .verse-text { font-size: 18px; line-height: 1.6; color: #2c3e50; font-weight: 600; }
         
-        /* עיצוב הפירוש */
-        .commentary-box { margin-top: 12px; padding: 10px 12px; background-color: #f8f9fa; border-top: 1px dashed #ddd; border-radius: 6px; }
-        .commentary-title { font-size: 12px; font-weight: bold; color: #8e44ad; margin-bottom: 4px; }
-        .commentary-text { font-size: 14px; color: #555; line-height: 1.5; }
-        
+        .toggle-btn { background: none; border: none; color: #8e44ad; cursor: pointer; font-size: 13px; text-decoration: underline; padding: 0; margin-top: 10px; display: block; }
+        .commentary-box { margin-top: 8px; padding: 10px; background-color: #f8f9fa; border-top: 1px dashed #ddd; border-radius: 6px; font-size: 14px; color: #444; display: none; }
         .no-results { text-align: center; color: #e74c3c; font-size: 16px; margin-top: 20px; }
     </style>
 </head>
 <body>
 <div class="container">
     <h1>מצא פסוק בתנ"ך לפי שם</h1>
-    <h2>חיפוש מהיר בכל כ"ד הספרים + פירוש רש"י</h2>
+    <h2>חיפוש מהיר בכל כ"ד הספרים</h2>
     
     <form class="search-form" method="POST" action="/">
         <input type="text" name="name" placeholder="הכנס שם (למשל: שיר, אברהם...)" value="{{ user_input }}" required autocomplete="off">
@@ -149,13 +168,8 @@ HTML_TEMPLATE = """
                     <div class="verse-meta">{{ item.book }} • פרק {{ item.chapter }}, פסוק {{ item.verse }}</div>
                     <div class="verse-text">"{{ item.text }}"</div>
                     
-                    <!-- הצגת פירוש רש"י -->
-                    {% if item.commentary %}
-                    <div class="commentary-box">
-                        <div class="commentary-title">פירוש רש"י:</div>
-                        <div class="commentary-text">{{ item.commentary }}</div>
-                    </div>
-                    {% endif %}
+                    <button class="toggle-btn" onclick="loadCommentary(this, '{{ item.book }}', '{{ item.chapter }}', '{{ item.verse }}')">📜 הצג פירוש רש"י</button>
+                    <div class="commentary-box"></div>
                 </div>
             {% endfor %}
         {% else %}
@@ -163,6 +177,38 @@ HTML_TEMPLATE = """
         {% endif %}
     {% endif %}
 </div>
+
+<script>
+function loadCommentary(btn, book, chapter, verse) {
+    const box = btn.nextElementSibling;
+    if (box.style.display === "block") {
+        box.style.display = "none";
+        btn.innerText = "📜 הצג פירוש רש\"י";
+        return;
+    }
+    
+    if (box.dataset.loaded) {
+        box.style.display = "block";
+        btn.innerText = "📜 הסתר פירוש רש\"י";
+        return;
+    }
+
+    btn.innerText = "טוען פירוש...";
+    fetch(`/get_commentary?book=${encodeURIComponent(book)}&chapter=${encodeURIComponent(chapter)}&verse=${encodeURIComponent(verse)}`)
+        .then(res => res.json())
+        .then(data => {
+            box.innerHTML = "<strong>פירוש רש\"י:</strong><br>" + data.commentary;
+            box.style.display = "block";
+            box.dataset.loaded = "true";
+            btn.innerText = "📜 הסתר פירוש רש\"י";
+        })
+        .catch(() => {
+            box.innerText = "שגיאה בטעינת הפירוש.";
+            box.style.display = "block";
+            btn.innerText = "📜 הצג פירוש רש\"י";
+        });
+}
+</script>
 </body>
 </html>
 """
@@ -183,13 +229,7 @@ def home():
             searched = True
             start_letter = cleaned_name[0]
             end_letter = cleaned_name[-1]
-            raw_results = tanach_index.get((start_letter, end_letter), [])
-            
-            # טעינת הפירוש רק עבור תוצאות החיפוש הנוכחיות (כדי לשמור על מהירות)
-            for item in raw_results:
-                item_copy = dict(item)
-                item_copy['commentary'] = get_rashi_commentary(item['book'], item['chapter'], item['verse'])
-                results.append(item_copy)
+            results = tanach_index.get((start_letter, end_letter), [])
 
     return render_template_string(HTML_TEMPLATE, results=results, user_input=user_input, 
                                   searched=searched, start_letter=start_letter, end_letter=end_letter)
