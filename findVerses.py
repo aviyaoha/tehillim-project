@@ -1,23 +1,55 @@
 from flask import Flask, render_template_string, request
 import re
 import os
+import urllib.request
+import json
 
 app = Flask(__name__)
 
-# פונקציית ניקוי הטקסט המצוינת שלך
+# מיפוי שמות ספרים מעברית לאנגלית עבור ה-API של Sefaria
+BOOK_MAPPING = {
+    "בראשית": "Genesis", "שמות": "Exodus", "ויקרא": "Leviticus", "במדבר": "Numbers", "דברים": "Deuteronomy",
+    "יהושע": "Joshua", "שופטים": "Judges", "שמואל א": "I Samuel", "שמואל ב": "II Samuel",
+    "מלכים א": "I Kings", "מלכים ב": "II Kings", "ישעיהו": "Isaiah", "ירמיהו": "Jeremiah", "יחזקאל": "Ezekiel",
+    "הושע": "Hosea", "יואל": "Joel", "עמוס": "Amos", "עובדיה": "Obadiah", "יונה": "Jonah", "מיכה": "Micah",
+    "נחום": "Nahum", "חבקוק": "Habakkuk", "צפניה": "Zephaniah", "חגי": "Haggai", "זכריה": "Zechariah", "מלאכי": "Malachi",
+    "תהילים": "Psalms", "משלי": "Proverbs", "איוב": "Job", "שיר השירים": "Song of Songs", "רות": "Ruth",
+    "איכה": "Lamentations", "קהלת": "Ecclesiastes", "אסתר": "Esther", "דניאל": "Daniel", "עזרא": "Ezra",
+    "נחמיה": "Nehemiah", "דברי הימים א": "I Chronicles", "דברי הימים ב": "II Chronicles"
+}
+
 def clean_text(text):
-    # הסרת ניקוד וטעמי מקרא
     cleaned = re.sub(r'[\u0591-\u05C7]', '', text)
-    # הסרת סוגריים עגולים ותוכן בתוכם (כמו קרי וכתיב)
     cleaned = re.sub(r'\([^)]*\)', '', cleaned)
-    # הסרת סימני פיסוק, סוגריים מסולסלים או מרובעים ותגיות HTML שנשארו
     cleaned = re.sub(r'<[^>]*>', '', cleaned)
     cleaned = re.sub(r'[:\-\.\,"\';\{\}\[\]_]', '', cleaned)
-    # החלפת רווחים כפולים ברווח בודד
     cleaned = re.sub(r'\s+', ' ', cleaned)
     return cleaned.strip()
 
-# פונקציה חכמה לקריאה ואינדוקס של כל התנ"ך מקובץ ה-HTML
+# פונקציה שמביאה פירוש רש"י מ-API של Sefaria
+def get_rashi_commentary(book_hebrew, chapter, verse):
+    book_english = BOOK_MAPPING.get(book_hebrew)
+    if not book_english:
+        return None
+    
+    # הפיכת פרק ופסוק מאותיות במספרים (אם נדרש) או שימוש ישיר בערכים
+    try:
+        url = f"https://www.sefaria.org/api/texts/Rashi_on_{book_english}.{chapter}.{verse}?context=0"
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req, timeout=3) as response:
+            data = json.loads(response.read().decode('utf-8'))
+            hebrew_text = data.get('he', [])
+            if isinstance(hebrew_text, list) and hebrew_text:
+                # ניקוי תגיות HTML מתוך הפירוש
+                commentary = " ".join(hebrew_text)
+                return re.sub(r'<[^>]*>', '', commentary)
+            elif isinstance(hebrew_text, str) and hebrew_text:
+                return re.sub(r'<[^>]*>', '', hebrew_text)
+    except Exception as e:
+        print(f"שגיאה במשיכת פירוש: {e}")
+    
+    return "לא נמצא פירוש רש\"י לפסוק זה."
+
 def load_and_index_tanach(file_path='Tanach.html'):
     index = {}
     try:
@@ -27,17 +59,11 @@ def load_and_index_tanach(file_path='Tanach.html'):
         print(f"שגיאה: הקובץ '{file_path}' לא נמצא בתיקייה.")
         return {}
 
-    # ביטוי רגולרי שמחפש את הפורמט: [שם_ספר פרק,פסוק] ואז את הטקסט עד לסוגריים המרובעים הבאים
-    # למשל: [בראשית א,א] בראשית ברא...
     pattern = r'\[([^\]]+)\]([^\[]+)'
     matches = re.findall(pattern, html_content)
 
     for meta_info, verse_text in matches:
-        # meta_info מכיל למשל "בראשית א,א" או "תהילים קנ,ו"
         meta_info = meta_info.strip()
-        
-        # פירוק לשם הספר, ולפרק+פסוק
-        # נחלק לפי הרווח האחרון (כדי לתמוך בספרים כמו "דברי הימים א")
         if ' ' in meta_info:
             book_name, location = meta_info.rsplit(' ', 1)
             if ',' in location:
@@ -47,13 +73,9 @@ def load_and_index_tanach(file_path='Tanach.html'):
         else:
             continue
 
-        # ניקוי הטקסט הגולמי של הפסוק מתגיות HTML שנשארו (כמו <br> או תגיות סגירה)
         verse_text = re.sub(r'<[^>]*>', '', verse_text)
-        # הסרת סימוני פרשיות כמו {פ} או {ס} שמופיעים בסוף הפסוקים בקובץ ה-HTML
         verse_text = re.sub(r'\{[פסש]\}\s*$', '', verse_text).strip()
-        verse_text = verse_text.strip()
 
-        # ניקוי סופי לבדיקת אות פותחת וסוגרת
         pure_text = clean_text(verse_text)
         if not pure_text:
             continue
@@ -75,12 +97,10 @@ def load_and_index_tanach(file_path='Tanach.html'):
 
     return index
 
-# הפעלת האינדוקס של כל התנ"ך (קורה פעם אחת כשהשרת נדלק)
-print("מאנדקס את כל כ\"ד ספרי התנ\"ך... אנא המתן...")
+print("מאנדקס את כל כ\"ד ספרי התנ\"ך...")
 tanach_index = load_and_index_tanach()
-print(f"האינדוקס הושלם! נטענו בהצלחה פסקאות ופסוקים מכל התנ\"ך.")
+print("האינדוקס הושלם!")
 
-# ה-HTML המעודכן - תומך באנטר ומציג גם את שם הספר (חומש/נ"ך)
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
@@ -101,16 +121,21 @@ HTML_TEMPLATE = """
         .results-info { font-weight: bold; margin-bottom: 15px; color: #7f8c8d; }
         .verse-card { background: #fdfefe; border-right: 4px solid #2ecc71; padding: 15px; margin-bottom: 15px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
         .verse-meta { font-size: 13px; color: #e67e22; font-weight: bold; margin-bottom: 5px; }
-        .verse-text { font-size: 18px; line-height: 1.6; color: #2c3e50; }
+        .verse-text { font-size: 18px; line-height: 1.6; color: #2c3e50; font-weight: 600; }
+        
+        /* עיצוב הפירוש */
+        .commentary-box { margin-top: 12px; padding: 10px 12px; background-color: #f8f9fa; border-top: 1px dashed #ddd; border-radius: 6px; }
+        .commentary-title { font-size: 12px; font-weight: bold; color: #8e44ad; margin-bottom: 4px; }
+        .commentary-text { font-size: 14px; color: #555; line-height: 1.5; }
+        
         .no-results { text-align: center; color: #e74c3c; font-size: 16px; margin-top: 20px; }
     </style>
 </head>
 <body>
 <div class="container">
     <h1>מצא פסוק בתנ"ך לפי שם</h1>
-    <h2>חיפוש מהיר בכל כ"ד הספרים (חומש, נביאים וכתובבים)</h2>
+    <h2>חיפוש מהיר בכל כ"ד הספרים + פירוש רש"י</h2>
     
-    <!-- שימוש בטופס סטנדרטי המאפשר למקש אנטר לעבוד אוטומטית ובאופן טבעי -->
     <form class="search-form" method="POST" action="/">
         <input type="text" name="name" placeholder="הכנס שם (למשל: שיר, אברהם...)" value="{{ user_input }}" required autocomplete="off">
         <button type="submit">חפש</button>
@@ -123,6 +148,14 @@ HTML_TEMPLATE = """
                 <div class="verse-card">
                     <div class="verse-meta">{{ item.book }} • פרק {{ item.chapter }}, פסוק {{ item.verse }}</div>
                     <div class="verse-text">"{{ item.text }}"</div>
+                    
+                    <!-- הצגת פירוש רש"י -->
+                    {% if item.commentary %}
+                    <div class="commentary-box">
+                        <div class="commentary-title">פירוש רש"י:</div>
+                        <div class="commentary-text">{{ item.commentary }}</div>
+                    </div>
+                    {% endif %}
                 </div>
             {% endfor %}
         {% else %}
@@ -150,7 +183,13 @@ def home():
             searched = True
             start_letter = cleaned_name[0]
             end_letter = cleaned_name[-1]
-            results = tanach_index.get((start_letter, end_letter), [])
+            raw_results = tanach_index.get((start_letter, end_letter), [])
+            
+            # טעינת הפירוש רק עבור תוצאות החיפוש הנוכחיות (כדי לשמור על מהירות)
+            for item in raw_results:
+                item_copy = dict(item)
+                item_copy['commentary'] = get_rashi_commentary(item['book'], item['chapter'], item['verse'])
+                results.append(item_copy)
 
     return render_template_string(HTML_TEMPLATE, results=results, user_input=user_input, 
                                   searched=searched, start_letter=start_letter, end_letter=end_letter)
