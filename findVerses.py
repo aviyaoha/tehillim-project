@@ -2,6 +2,7 @@ from flask import Flask, render_template_string, request, jsonify
 import re
 import os
 import urllib.request
+import urllib.parse
 import json
 
 app = Flask(__name__)
@@ -102,7 +103,6 @@ def get_commentary():
     ch_num = hebrew_to_int(chapter) if not str(chapter).isdigit() else int(chapter)
     v_num = hebrew_to_int(verse) if not str(verse).isdigit() else int(verse)
 
-    # נתיב עדכני ויציב מול ספריא
     ref = f"Rashi_on_{book_eng}.{ch_num}.{v_num}"
     url = f"https://www.sefaria.org/api/v3/texts/{urllib.parse.quote(ref)}?version=hebrew"
 
@@ -111,7 +111,6 @@ def get_commentary():
         with urllib.request.urlopen(req, timeout=5) as response:
             data = json.loads(response.read().decode('utf-8'))
             
-            # שליפת הטקסט בעברית מהגרסה החדשה של ספריא
             versions = data.get('versions', [])
             commentary_list = []
             
@@ -127,7 +126,6 @@ def get_commentary():
                 cleaned_comments = []
                 for c in commentary_list:
                     if isinstance(c, str) and c.strip():
-                        # ניקוי תגיות HTML ותוספות מיותרות
                         clean_c = re.sub(r'<[^>]*>', '', c)
                         cleaned_comments.append(clean_c)
                 
@@ -156,14 +154,14 @@ HTML_TEMPLATE = """
         .search-form { display: flex; gap: 10px; margin-bottom: 30px; }
         input[type="text"] { flex: 1; padding: 12px 15px; border: 2px solid #ccc; border-radius: 8px; font-size: 16px; outline: none; }
         input[type="text"]:focus { border-color: #3498db; }
-        button { padding: 12px 25px; background-color: #3498db; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; }
-        button:hover { background-color: #2980b9; }
+        button[type="submit"] { padding: 12px 25px; background-color: #3498db; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; }
+        button[type="submit"]:hover { background-color: #2980b9; }
         .results-info { font-weight: bold; margin-bottom: 15px; color: #7f8c8d; }
         .verse-card { background: #fdfefe; border-right: 4px solid #2ecc71; padding: 15px; margin-bottom: 15px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
         .verse-meta { font-size: 13px; color: #e67e22; font-weight: bold; margin-bottom: 5px; }
         .verse-text { font-size: 18px; line-height: 1.6; color: #2c3e50; font-weight: 600; }
         
-        .toggle-btn { background: #f39c12; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 13px; margin-top: 10px; display: inline-block; }
+        .toggle-btn { background: #f39c12; color: white; border: none; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-size: 14px; margin-top: 10px; display: inline-block; font-weight: bold; }
         .toggle-btn:hover { background: #d35400; }
         .commentary-box { margin-top: 10px; padding: 12px; background-color: #fcf8e3; border: 1px solid #faebcc; border-radius: 6px; font-size: 14px; color: #8a6d3b; display: none; line-height: 1.5; }
         .no-results { text-align: center; color: #e74c3c; font-size: 16px; margin-top: 20px; }
@@ -187,7 +185,7 @@ HTML_TEMPLATE = """
                     <div class="verse-meta">{{ item.book }} • פרק {{ item.chapter }}, פסוק {{ item.verse }}</div>
                     <div class="verse-text">"{{ item.text }}"</div>
                     
-                    <button class="toggle-btn" onclick="loadCommentary(this, '{{ item.book }}', '{{ item.chapter }}', '{{ item.verse }}')">📜 הצג פירוש רש"י</button>
+                    <button type="button" class="toggle-btn" onclick="loadCommentary(this, '{{ item.book }}', '{{ item.chapter }}', '{{ item.verse }}')">📜 הצג פירוש רש"י</button>
                     <div class="commentary-box"></div>
                 </div>
             {% endfor %}
@@ -200,32 +198,33 @@ HTML_TEMPLATE = """
 <script>
 function loadCommentary(btn, book, chapter, verse) {
     const box = btn.nextElementSibling;
-    if (box.style.display === "block") {
-        box.style.display = "none";
-        btn.innerText = "📜 הצג פירוש רש\"י";
+    
+    if (box.style.display === 'block') {
+        box.style.display = 'none';
+        btn.innerText = '📜 הצג פירוש רש"י';
         return;
     }
     
-    if (box.dataset.loaded) {
-        box.style.display = "block";
-        btn.innerText = "📜 הסתר פירוש רש\"י";
+    if (box.dataset.loaded === 'true') {
+        box.style.display = 'block';
+        btn.innerText = '📜 הסתר פירוש רש"י';
         return;
     }
 
-    btn.innerText = "⏳ טוען פירוש...";
+    btn.innerText = '⏳ טוען פירוש...';
     
-    fetch(`/get_commentary?book=${encodeURIComponent(book)}&chapter=${encodeURIComponent(chapter)}&verse=${encodeURIComponent(verse)}`)
+    fetch('/get_commentary?book=' + encodeURIComponent(book) + '&chapter=' + encodeURIComponent(chapter) + '&verse=' + encodeURIComponent(verse))
         .then(res => res.json())
         .then(data => {
-            box.innerHTML = "<strong>פירוש רש\"י:</strong><br>" + data.commentary;
-            box.style.display = "block";
-            box.dataset.loaded = "true";
-            btn.innerText = "📜 הסתר פירוש רש\"י";
+            box.innerHTML = '<strong>פירוש רש"י:</strong><br>' + data.commentary;
+            box.style.display = 'block';
+            box.dataset.loaded = 'true';
+            btn.innerText = '📜 הסתר פירוש רש"י';
         })
         .catch(err => {
-            box.innerHTML = "שגיאה בטעינת הפירוש. נסה שוב מאוחר יותר.";
-            box.style.display = "block";
-            btn.innerText = "📜 הצג פירוש רש\"י";
+            box.innerHTML = 'שגיאה בטעינת הפירוש. נסה שוב מאוחר יותר.';
+            box.style.display = 'block';
+            btn.innerText = '📜 הצג פירוש רש"י';
         });
 }
 </script>
