@@ -194,7 +194,7 @@ HTML_TEMPLATE = """
                         <button type="button" class="toggle-btn" onclick="loadCommentary(this, '{{ item.book }}', '{{ item.chapter }}', '{{ item.verse }}')">📜 הצג פירוש רש"י</button>
                         
                         <!-- כפתור שיתוף לוואטסאפ מבוסס JS למניעת תקלות מילוט -->
-                        <button type="button" class="whatsapp-btn" onclick="shareWhatsApp('{{ user_input }}', '{{ item.text }}', '{{ item.book }}', '{{ item.chapter }}', '{{ item.verse }}')">💬 שלח לחבר בוואטסאפ</button>
+                        <button type="button" class="whatsapp-btn" onclick="shareWhatsApp({{ user_input|tojson }}, {{ item.text|tojson }}, {{ item.book|tojson }}, {{ item.chapter|tojson }}, {{ item.verse|tojson }})">💬 שלח לחבר בוואטסאפ</button>
                     </div>
 
                     <div class="commentary-box"></div>
